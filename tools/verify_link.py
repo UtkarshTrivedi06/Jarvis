@@ -11,9 +11,8 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 def test_pyqt6():
-    print("[Link Test 1/5] Checking PyQt6...")
+    print("[Link Test 1/8] Checking PyQt6...")
     from PyQt6.QtWidgets import QApplication
-    from PyQt6.QtCore import QTimer
     app = QApplication.instance()
     if app is None:
         app = QApplication(sys.argv)
@@ -21,7 +20,7 @@ def test_pyqt6():
     return True
 
 def test_audio():
-    print("[Link Test 2/5] Checking sounddevice & microphone...")
+    print("[Link Test 2/8] Checking sounddevice & microphone...")
     import sounddevice as sd
     devices = sd.query_devices()
     default_input = sd.default.device[0]
@@ -30,7 +29,7 @@ def test_audio():
     return True
 
 def test_telemetry():
-    print("[Link Test 3/5] Checking psutil telemetry...")
+    print("[Link Test 3/8] Checking psutil telemetry...")
     import psutil
     cpu = psutil.cpu_percent(interval=0.1)
     ram = psutil.virtual_memory()
@@ -38,55 +37,74 @@ def test_telemetry():
     return True
 
 def test_whisper():
-    print("[Link Test 4/5] Checking faster-whisper...")
+    print("[Link Test 4/8] Checking faster-whisper...")
     import faster_whisper
     print(f"  -> faster-whisper version: {faster_whisper.__version__}")
     return True
 
 def test_second_brain():
-    print("[Link Test 5/5] Checking Second Brain local path...")
-    sb_path = os.path.abspath(os.path.join(PROJECT_ROOT, "..", ".."))
-    if os.path.exists(sb_path):
-        md_count = 0
-        for root, dirs, files in os.walk(sb_path):
-            if ".git" in root or ".tmp" in root or "node_modules" in root:
-                continue
-            for f in files:
-                if f.endswith(".md"):
-                    md_count += 1
-        print(f"  -> Second Brain path verified at '{sb_path}'. Found {md_count} markdown notes.")
-        return True
-    else:
-        print(f"  -> Warning: Second Brain path '{sb_path}' not found directly.")
-        return False
+    print("[Link Test 5/8] Checking Second Brain local path...")
+    from tools.second_brain import SecondBrainEngine
+    sb = SecondBrainEngine()
+    notes = sb.search_notes("project", limit=3)
+    print(f"  -> Second Brain search operational. Found {len(notes)} project matches.")
+    return True
+
+def test_sapi_tts():
+    print("[Link Test 6/8] Checking Windows SAPI TTS...")
+    import win32com.client
+    speaker = win32com.client.Dispatch("SAPI.SpVoice")
+    voices = speaker.GetVoices()
+    voice_names = [voices.Item(i).GetDescription() for i in range(voices.Count)]
+    print(f"  -> Found {len(voice_names)} SAPI voices: {', '.join(voice_names[:2])}")
+    return True
+
+def test_honcho_memory():
+    print("[Link Test 7/8] Checking Honcho memory client...")
+    from tools.memory_honcho import HonchoMemoryClient
+    memory = HonchoMemoryClient(user_id="test_probe")
+    ctx = memory.get_user_context()
+    print(f"  -> Honcho Memory ready. Context: {ctx[:60]}...")
+    return True
+
+def test_hermes_agent():
+    print("[Link Test 8/8] Checking Hermes 3 agent loop...")
+    from tools.hermes_agent import HermesAgent
+    agent = HermesAgent()
+    resp, tools = agent.process_query("What is the system status?")
+    print(f"  -> Hermes Agent responsive: '{resp[:60]}...' (Tools: {tools})")
+    return True
 
 def main():
-    print("=" * 60)
-    print("      JARVIS DESKTOP ASSISTANT — LINK VERIFICATION SPIKE      ")
-    print("=" * 60)
+    print("=" * 65)
+    print("      J.A.R.V.I.S. SYSTEM VERIFICATION & DIAGNOSTIC SPIKE      ")
+    print("=" * 65)
     
     results = [
-        ("PyQt6 UI", test_pyqt6()),
-        ("SoundDevice Audio", test_audio()),
-        ("Psutil Telemetry", test_telemetry()),
-        ("Faster-Whisper STT", test_whisper()),
-        ("Second Brain Storage", test_second_brain()),
+        ("PyQt6 GUI Subsystem", test_pyqt6()),
+        ("SoundDevice Input Stream", test_audio()),
+        ("Psutil System Telemetry", test_telemetry()),
+        ("Faster-Whisper STT Engine", test_whisper()),
+        ("Second Brain Vault Search", test_second_brain()),
+        ("Windows SAPI TTS Engine", test_sapi_tts()),
+        ("Honcho Memory Layer", test_honcho_memory()),
+        ("Hermes Agent Router", test_hermes_agent()),
     ]
     
-    print("\n" + "=" * 60)
-    print("LINK VERIFICATION SUMMARY:")
+    print("\n" + "=" * 65)
+    print("DIAGNOSTIC SUMMARY:")
     all_passed = True
     for name, passed in results:
         status = "PASSED" if passed else "FAILED"
-        print(f"  - {name:<25}: {status}")
+        print(f"  - {name:<30}: {status}")
         if not passed:
             all_passed = False
-    print("=" * 60)
+    print("=" * 65)
     
     if all_passed:
-        print("[Link Spike] All systems operational. Proceeding to Phase 3 Architect.")
+        print("[Diagnostic Spike] All 8 subsystems verified and fully operational.")
     else:
-        print("[Link Spike] Verification encountered issues.")
+        print("[Diagnostic Spike] Subsystem anomalies detected.")
         sys.exit(1)
 
 if __name__ == "__main__":
