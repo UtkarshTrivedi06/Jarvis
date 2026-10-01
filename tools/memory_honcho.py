@@ -1,6 +1,6 @@
 """
 J.A.R.V.I.S. Adaptive Memory Client (Honcho Integration)
-Connects to Honcho SDK (honcho-ai v2.5+) for long-term user representation and session memory,
+Uses Honcho SDK (honcho-ai v2.5+) for long-term user representation and session memory,
 with automatic local persistent fallback.
 """
 
@@ -8,6 +8,10 @@ import os
 import json
 import threading
 from typing import Optional, Dict, Any, List
+from dotenv import load_dotenv
+
+# Load .env variables
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 TMP_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".tmp"))
 os.makedirs(TMP_DIR, exist_ok=True)
@@ -17,6 +21,10 @@ class HonchoMemoryClient:
     def __init__(self, user_id: str = "stark_01"):
         self.user_id = user_id
         self.api_key = os.environ.get("HONCHO_API_KEY", None)
+        # Check if user kept the default placeholder
+        if self.api_key in ["your_honcho_api_key_here", "", None]:
+            self.api_key = None
+            
         self.workspace_id = os.environ.get("HONCHO_WORKSPACE_ID", "jarvis_workspace")
         self._honcho_sdk = None
         self._init_sdk()
@@ -33,7 +41,7 @@ class HonchoMemoryClient:
             except Exception as e:
                 print(f"[Honcho] SDK notice: {e}. Utilizing persistent local memory engine.")
         else:
-            print(f"[Honcho] No HONCHO_API_KEY detected. Utilizing persistent local memory engine.")
+            print(f"[Honcho] Utilizing persistent local memory engine for user '{self.user_id}'.")
 
     def get_user_context(self) -> str:
         """Retrieves adaptive memory context for user query augmentation."""
@@ -44,7 +52,6 @@ class HonchoMemoryClient:
                 if conclusions:
                     return str(conclusions)
             except Exception as e:
-                # Fallback to local
                 pass
 
         # Local Persistent Memory Fallback
@@ -59,12 +66,11 @@ class HonchoMemoryClient:
         ).start()
 
     def _async_save(self, user_query: str, agent_response: str, executed_tools: List[str]):
-        # 1. Update cloud Honcho if SDK and API key are configured
+        # 1. Update cloud Honcho if SDK and valid API key are configured
         if self._honcho_sdk:
             try:
                 session_id = f"{self.user_id}_session"
                 self._honcho_sdk.sessions.get_or_create(session_id=session_id)
-                # Record user query and assistant response messages
                 self._honcho_sdk.messages.create(
                     session_id=session_id,
                     peer_id=self.user_id,
