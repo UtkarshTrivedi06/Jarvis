@@ -1,30 +1,28 @@
-# 📐 SOP: PyQt6 Cyberpunk Tactical HUD Overlay
+# 📐 SOP: J.A.R.V.I.S. Full-Screen Holographic HUD
 
 ## Purpose
-Defines the window lifecycle, rendering pipeline, micro-animations, and input handling for the Jarvis Desktop Assistant HUD.
+Defines the window lifecycle, full-screen holographic rendering, giant Arc Reactor animations, audio chimes, and zero text-box voice-driven interface.
 
 ## Architecture & Layout
 1. **Window Specifications:**
+   - Full-Screen (`showFullScreen()`)
    - Frameless (`Qt.WindowType.FramelessWindowHint`)
    - Always-on-top (`Qt.WindowType.WindowStaysOnTopHint`)
-   - Transparent background attribute (`Qt.WidgetAttribute.WA_TranslucentBackground`)
-   - Default dimensions: `760x170px`, auto-centered at top 18% of screen.
-   - Expanded telemetry mode: `840x480px`.
+   - Transparent canvas (`Qt.WidgetAttribute.WA_TranslucentBackground`)
+   - Background canvas: `#030508` at 0.92 opacity.
 
 2. **Visual Hierarchy:**
-   - **Header Bar:**
-     - Left Flank: Real-time CPU, RAM, and Network I/O metrics.
-     - Center: Dynamic Vector Arc Reactor Core (custom QWidget with QPainter).
-     - Right Flank: Quick Launcher buttons (CMD, VS Code, Second Brain).
-   - **Input Section:** Glowing glassmorphic input box with keyboard and voice capture.
-   - **Console Output Section:** Typewriter text stream with colored status pills (`[ 🎙️ LISTENING ]`, `[ ⚡ THINKING ]`, `[ 🚀 EXECUTED ]`).
+   - **Top Header:** Stark Industries Holographic Header + `[ESC] TO DISMISS` hint.
+   - **Center:** Giant Multi-Ring Animated Arc Reactor (360x360px `QPainter` vector graphics).
+     - Concentric rotating segmented tracks (16 segments).
+     - 16 radial dynamic audio-reactive waveform bars scaling in real-time with mic input.
+     - Central high-intensity energy bloom and core disc.
+     - Orbiting quantum particle streams.
+   - **Bottom Subtitle Stream:** Glowing sci-fi status badge + typewriter subtitle stream.
 
-3. **Arc Reactor Core:**
-   - Ring 1 (Inner): Core reactor glowing circle with pulse.
-   - Ring 2 (Middle): 12-segment rotating tick ring (counter-clockwise 12 RPM, accelerating to 60 RPM during processing).
-   - Ring 3 (Outer): 8-16 radial audio reactive waveform bars scaling dynamically with microphone RMS volume.
-
-4. **Lifecycle & Focus:**
-   - Triggered by global `Win + J`.
-   - Wakes, raises, and claims OS focus using Win32 API (`SetForegroundWindow`).
-   - Dismisses immediately on `Esc` key or blur timeout.
+3. **Audio Cues & Transitions:**
+   - **Wake (`Win + J`):** Plays `wake.wav`, triggers HUD full-screen expansion.
+   - **Listening:** Stark Cyan (`#00F0FF`) & Electric Blue (`#3B82F6`).
+   - **Processing:** Amber Gold (`#F59E0B`), Arc Reactor accelerates to 90 RPM.
+   - **Speaking:** Emerald Green (`#10B981`), SAPI voice output plays while subtitles type character-by-character.
+   - **Dismiss (`Esc`):** Plays `dismiss.wav` and fades back to desktop.

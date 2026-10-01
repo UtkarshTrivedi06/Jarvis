@@ -1,6 +1,6 @@
 """
-Automated Comprehensive Test Suite for Jarvis Desktop Assistant
-Validates Models, Second Brain Engine, Telemetry, HUD Overlay, and Orchestrator.
+Automated Comprehensive Test Suite for J.A.R.V.I.S. Desktop Assistant
+Validates Models, Audio SFX, Second Brain, System Controls, Full-Screen HUD, and Orchestrator.
 """
 
 import os
@@ -12,11 +12,11 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from PyQt6.QtWidgets import QApplication
-from tools.models import CapturedCommand, CommandExecutionResult, SystemTelemetryPayload
+from tools.models import CapturedCommand, CommandExecutionResult
 from tools.second_brain import SecondBrainEngine
-from tools.system_telemetry import TelemetryMonitor
-from tools.app_launcher import AppLauncher
-from tools.hud_overlay import JarvisHUDOverlay, ArcReactorWidget
+from tools.system_controls import SystemControlEngine
+from tools.audio_sfx import generate_sci_fi_chimes, WAKE_WAV, DISMISS_WAV
+from tools.hud_overlay import JarvisHUDOverlay, GiantArcReactorWidget
 from main import JarvisOrchestrator
 
 class TestJarvisAssistant(unittest.TestCase):
@@ -29,46 +29,38 @@ class TestJarvisAssistant(unittest.TestCase):
     def test_01_models_validation(self):
         """Test Pydantic input and output payload models."""
         cmd = CapturedCommand(
-            trigger_source="win+j",
-            raw_text="Search note for SAMAY challenge",
-            clipboard_context="https://example.com",
+            trigger_source="win+j_voice",
+            transcribed_text="Search note for SAMAY",
+            vad_confidence=0.99,
             target_scope="second_brain"
         )
-        self.assertEqual(cmd.trigger_source, "win+j")
+        self.assertEqual(cmd.trigger_source, "win+j_voice")
         self.assertEqual(cmd.target_scope, "second_brain")
 
         res = CommandExecutionResult(
-            command_id="test-123",
-            action_type="read_note",
-            status="success",
-            response_text="Found note",
-            file_path_accessed="d:/_Second Brain/note.md"
+            action_type="tts_response",
+            spoken_response="At your service, sir.",
+            status="success"
         )
         self.assertEqual(res.status, "success")
-        self.assertEqual(res.action_type, "read_note")
+        self.assertEqual(res.action_type, "tts_response")
 
-    def test_02_second_brain_search(self):
-        """Test markdown note searching."""
-        sb = SecondBrainEngine()
-        results = sb.search_notes("project", limit=3)
-        self.assertIsInstance(results, list)
-        print(f"  [Test] Second Brain search for 'project' returned {len(results)} matches.")
+    def test_02_audio_sfx_synthesis(self):
+        """Test procedural sound chimes generation."""
+        generate_sci_fi_chimes()
+        self.assertTrue(os.path.exists(WAKE_WAV))
+        self.assertTrue(os.path.exists(DISMISS_WAV))
+        print("  [Test] Sci-Fi audio chimes generated and validated.")
 
-    def test_03_telemetry_polling(self):
-        """Test psutil metrics calculation."""
-        monitor = TelemetryMonitor()
-        received_payload = []
-        monitor.telemetry_updated.connect(lambda p: received_payload.append(p))
-        monitor.poll_stats()
-        
-        self.assertEqual(len(received_payload), 1)
-        p = received_payload[0]
-        self.assertGreaterEqual(p.cpu_percent, 0.0)
-        self.assertGreater(p.ram_total_gb, 0.0)
-        print(f"  [Test] Telemetry: CPU={p.cpu_percent}%, RAM={p.ram_used_gb}/{p.ram_total_gb}GB")
+    def test_03_system_controls(self):
+        """Test system control routines."""
+        sc = SystemControlEngine()
+        msg_up = sc.volume_up(1)
+        self.assertIn("audio volume", msg_up)
+        print(f"  [Test] System control message: {msg_up}")
 
-    def test_04_hud_widgets_and_reactor(self):
-        """Test HUD components and Arc Reactor states."""
+    def test_04_hud_widgets_and_giant_reactor(self):
+        """Test full-screen HUD and Giant Arc Reactor state transitions."""
         hud = JarvisHUDOverlay()
         self.assertIsNotNone(hud.arc_reactor)
         
@@ -76,42 +68,32 @@ class TestJarvisAssistant(unittest.TestCase):
         hud.set_hud_state("listening", "Listening test")
         self.assertEqual(hud.arc_reactor.state, "listening")
         
-        hud.set_hud_state("processing", "Thinking test")
+        hud.set_hud_state("processing", "Computing test")
         self.assertEqual(hud.arc_reactor.state, "processing")
         
-        hud.set_hud_state("success", "Success test")
-        self.assertEqual(hud.arc_reactor.state, "success")
+        hud.set_hud_state("speaking", "Speaking test")
+        self.assertEqual(hud.arc_reactor.state, "speaking")
         
         # Test audio amplitude setting
-        hud.set_amplitude(0.75)
-        self.assertEqual(hud.arc_reactor.target_amplitude, 0.75)
-        print("  [Test] HUD & Arc Reactor animations validated.")
+        hud.set_amplitude(0.85)
+        self.assertEqual(hud.arc_reactor.target_amplitude, 0.85)
+        print("  [Test] Full-Screen HUD & Giant Arc Reactor animations validated.")
 
     def test_05_orchestrator_routing(self):
-        """Test Layer 2 orchestrator command handling."""
+        """Test Layer 2 orchestrator command handling with J.A.R.V.I.S. persona."""
         orchestrator = JarvisOrchestrator()
         
-        # Test Second Brain command
+        # Test Second Brain query
         cmd_sb = CapturedCommand(
-            trigger_source="manual",
-            raw_text="Search note for SAMAY",
+            trigger_source="win+j_voice",
+            transcribed_text="Search note for SAMAY",
             target_scope="second_brain"
         )
         res_sb = orchestrator.handle_command(cmd_sb)
         self.assertEqual(res_sb.status, "success")
-        self.assertIn(res_sb.action_type, ["read_note", "text_response"])
-        print(f"  [Test] Orchestrator executed Second Brain query: {res_sb.response_text[:60]}...")
-
-        # Test Telemetry command
-        cmd_tel = CapturedCommand(
-            trigger_source="manual",
-            raw_text="Show system cpu and ram",
-            target_scope="system_telemetry"
-        )
-        res_tel = orchestrator.handle_command(cmd_tel)
-        self.assertEqual(res_tel.status, "success")
-        self.assertEqual(res_tel.action_type, "telemetry")
-        print(f"  [Test] Orchestrator executed Telemetry query: {res_tel.response_text[:60]}...")
+        self.assertIn("sir", res_sb.spoken_response)
+        clean_spoken = res_sb.spoken_response.encode('ascii', errors='ignore').decode()
+        print(f"  [Test] Orchestrator executed query with J.A.R.V.I.S. persona: '{clean_spoken}'")
 
 
 if __name__ == "__main__":

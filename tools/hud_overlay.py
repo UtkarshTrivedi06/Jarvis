@@ -1,60 +1,60 @@
 """
-Jarvis Cyberpunk Tactical HUD Overlay (PyQt6)
+J.A.R.V.I.S. Full-Screen Holographic HUD (PyQt6)
 Implements:
-- Glassmorphic dark slate window with cyan/neon glowing borders
-- Central Arc Reactor custom vector widget (3 rotating tracks + live audio reactive bars)
-- Left Telemetry Flank (CPU, RAM, Network)
-- Right Quick Tools Flank (CMD, VS Code, Second Brain)
-- Interactive Command Input Field
-- Console Output Stream with Typewriter Animation & Status Badges
-- Scale & Opacity Wake/Dismiss animations
+- Full-Screen Dark HUD Canvas (#030508 with 0.92 glassmorphic opacity)
+- Giant Centered Multi-Ring Arc Reactor Core with live 16-bar audio-reactive waveform
+- Orbiting quantum energy particles and dynamic rotational acceleration (15 RPM -> 90 RPM)
+- Stark Sci-Fi color palette (Cyan/Electric Blue -> Amber Gold -> Emerald Green)
+- Sci-Fi Subtitle Stream with Typewriter Animation (Zero conventional text boxes)
+- Audio cues (wake / dismiss chimes) and smooth holographic scale/fade transitions
 """
 
 import sys
 import os
 import math
-import ctypes
 from typing import Callable, Optional
 
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-    QLineEdit, QPushButton, QFrame, QGraphicsDropShadowEffect
+    QGraphicsDropShadowEffect, QFrame
 )
 from PyQt6.QtCore import (
-    Qt, QTimer, QPoint, QRectF, pyqtSignal, QPropertyAnimation, 
+    Qt, QTimer, QRectF, pyqtSignal, QPropertyAnimation, 
     QEasingCurve, pyqtProperty
 )
 from PyQt6.QtGui import (
     QPainter, QColor, QPen, QBrush, QFont, QRadialGradient, 
-    QLinearGradient, QPainterPath, QKeySequence, QShortcut
+    QPainterPath, QKeySequence, QShortcut
 )
-import pyperclip
 
-from tools.models import CapturedCommand, SystemTelemetryPayload
+from tools.models import CapturedCommand
 from tools.win_keys import force_foreground_window
+from tools.audio_sfx import play_wake_sound, play_dismiss_sound
 
 
-class ArcReactorWidget(QWidget):
+class GiantArcReactorWidget(QWidget):
     """
-    High-Tech Arc Reactor Vector HUD Component:
-    - Inner Glowing Energy Core
-    - Middle Rotating Segmented Tick Ring (Accelerates on thinking)
-    - Outer Audio-Reactive Radial Waveform Equalizer Bars
-    - Orbiting Quantum Particles
+    Giant Centered Arc Reactor Holographic Core:
+    - Inner High-Intensity Energy Core & Radial Bloom
+    - Middle Concentric Rotating Segmented Tick Tracks (Multi-Ring)
+    - Outer 16-Bar Radial Audio-Reactive Waveform Equalizer
+    - Orbiting Quantum Particle Streams
     """
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedSize(90, 90)
+        self.setFixedSize(360, 360)
         
         self.angle_middle = 0.0
+        self.angle_outer_track = 0.0
         self.angle_particles = 0.0
-        self.rotation_speed = 1.2 # RPM idle
+        self.rotation_speed = 1.2 # ~15 RPM idle
         self.amplitude = 0.0      # Current audio level (0.0 to 1.0)
         self.target_amplitude = 0.0
-        self.state = "idle"       # "idle", "listening", "processing", "success"
+        self.state = "idle"       # "idle", "listening", "processing", "speaking", "success"
         self.pulse_phase = 0.0
+        self.scale_factor = 1.0
 
-        # Animation timer ~60 FPS
+        # High-refresh animation timer (~60 FPS)
         self.anim_timer = QTimer(self)
         self.anim_timer.timeout.connect(self._update_animation)
         self.anim_timer.start(16)
@@ -65,21 +65,24 @@ class ArcReactorWidget(QWidget):
     def set_state(self, state: str):
         self.state = state
         if state == "processing":
-            self.rotation_speed = 6.0 # Accelerated 60 RPM
+            self.rotation_speed = 7.5 # Accelerated 90 RPM
         elif state == "listening":
-            self.rotation_speed = 2.0
+            self.rotation_speed = 2.2
+        elif state in ["speaking", "success"]:
+            self.rotation_speed = 1.8
         else:
             self.rotation_speed = 1.2
         self.update()
 
     def _update_animation(self):
-        # Smooth rotation
+        # Continuous multi-track rotations
         self.angle_middle = (self.angle_middle + self.rotation_speed) % 360.0
-        self.angle_particles = (self.angle_particles - self.rotation_speed * 1.8) % 360.0
-        self.pulse_phase = (self.pulse_phase + 0.05) % (math.pi * 2)
+        self.angle_outer_track = (self.angle_outer_track - self.rotation_speed * 0.7) % 360.0
+        self.angle_particles = (self.angle_particles + self.rotation_speed * 2.0) % 360.0
+        self.pulse_phase = (self.pulse_phase + 0.06) % (math.pi * 2)
 
-        # Smooth audio amplitude lerp
-        self.amplitude += (self.target_amplitude - self.amplitude) * 0.35
+        # Smooth audio amplitude interpolation (lerp)
+        self.amplitude += (self.target_amplitude - self.amplitude) * 0.4
         self.update()
 
     def paintEvent(self, event):
@@ -89,128 +92,140 @@ class ArcReactorWidget(QWidget):
         center_x = self.width() / 2.0
         center_y = self.height() / 2.0
         
-        # Color mapping based on HUD state
+        # Determine color palette based on J.A.R.V.I.S. state
         if self.state == "listening":
-            glow_color = QColor(59, 130, 246)  # Electric Blue #3B82F6
-            accent_color = QColor(0, 240, 255) # Cyan
+            # Stark Cyan (#00F0FF) & Electric Blue (#3B82F6)
+            primary_color = QColor(0, 240, 255)
+            glow_color = QColor(59, 130, 246)
         elif self.state == "processing":
-            glow_color = QColor(245, 158, 11)  # Amber #F59E0B
-            accent_color = QColor(251, 191, 36)
-        elif self.state == "success":
-            glow_color = QColor(16, 185, 129)  # Emerald #10B981
-            accent_color = QColor(52, 211, 153)
+            # Amber Gold (#F59E0B)
+            primary_color = QColor(245, 158, 11)
+            glow_color = QColor(251, 191, 36)
+        elif self.state in ["speaking", "success"]:
+            # Emerald Green (#10B981)
+            primary_color = QColor(16, 185, 129)
+            glow_color = QColor(52, 211, 153)
         else:
-            glow_color = QColor(0, 240, 255)   # Default Cyan #00F0FF
-            accent_color = QColor(59, 130, 246)
+            primary_color = QColor(0, 240, 255)
+            glow_color = QColor(59, 130, 246)
 
-        # 1. Outer Radial Audio Waveform Equalizer (16 bars)
+        # ---------------- 1. Outer Holographic Perimeter Guide Ring ----------------
+        outer_guide_r = 155.0
+        painter.setPen(QPen(QColor(primary_color.red(), primary_color.green(), primary_color.blue(), 45), 1.2, Qt.PenStyle.DashDotLine))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawEllipse(QRectF(center_x - outer_guide_r, center_y - outer_guide_r, outer_guide_r * 2, outer_guide_r * 2))
+
+        # ---------------- 2. Outer Radial Audio Waveform Equalizer (16 Dynamic Bars) ----------------
         num_bars = 16
-        base_radius = 32.0
-        max_bar_length = 11.0
+        base_radius = 110.0
+        max_bar_len = 42.0
+        
         for i in range(num_bars):
             theta = (i * (360.0 / num_bars)) * (math.pi / 180.0)
-            # Modulate bar height with amplitude and subtle idle vibration
-            idle_noise = math.sin(self.pulse_phase * 2.0 + i) * 0.15
-            bar_scale = max(0.15, self.amplitude + idle_noise)
-            bar_len = bar_scale * max_bar_length
+            
+            # Modulate bar scaling with live mic amplitude + organic wave motion
+            organic_wave = math.sin(self.pulse_phase * 2.5 + i * 0.8) * 0.12
+            bar_scale = max(0.18, self.amplitude + organic_wave)
+            bar_length = bar_scale * max_bar_len
             
             r_start = base_radius
-            r_end = base_radius + bar_len
+            r_end = base_radius + bar_length
             
             x1 = center_x + r_start * math.cos(theta)
             y1 = center_y + r_start * math.sin(theta)
             x2 = center_x + r_end * math.cos(theta)
             y2 = center_y + r_end * math.sin(theta)
             
-            bar_alpha = int(140 + 115 * min(bar_scale, 1.0))
-            bar_pen = QPen(QColor(accent_color.red(), accent_color.green(), accent_color.blue(), bar_alpha), 2.2)
+            alpha = int(140 + 115 * min(bar_scale, 1.0))
+            bar_pen = QPen(QColor(primary_color.red(), primary_color.green(), primary_color.blue(), alpha), 4.0)
             bar_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
             painter.setPen(bar_pen)
             painter.drawLine(int(x1), int(y1), int(x2), int(y2))
 
-        # 2. Middle Rotating Segmented Tick Ring (12 Segments)
+        # ---------------- 3. Middle Rotating Segmented Tick Ring (16 Segments) ----------------
         painter.save()
         painter.translate(center_x, center_y)
         painter.rotate(self.angle_middle)
         
-        mid_radius = 24.0
-        num_ticks = 12
+        mid_radius = 85.0
+        num_ticks = 16
         for j in range(num_ticks):
             deg = j * (360.0 / num_ticks)
             rad = deg * (math.pi / 180.0)
-            tx1 = (mid_radius - 2.5) * math.cos(rad)
-            ty1 = (mid_radius - 2.5) * math.sin(rad)
-            tx2 = (mid_radius + 2.5) * math.cos(rad)
-            ty2 = (mid_radius + 2.5) * math.sin(rad)
+            tx1 = (mid_radius - 8.0) * math.cos(rad)
+            ty1 = (mid_radius - 8.0) * math.sin(rad)
+            tx2 = (mid_radius + 8.0) * math.cos(rad)
+            ty2 = (mid_radius + 8.0) * math.sin(rad)
             
-            tick_pen = QPen(QColor(glow_color.red(), glow_color.green(), glow_color.blue(), 180), 1.5)
+            tick_pen = QPen(QColor(glow_color.red(), glow_color.green(), glow_color.blue(), 200), 2.5)
+            tick_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
             painter.setPen(tick_pen)
             painter.drawLine(int(tx1), int(ty1), int(tx2), int(ty2))
             
-        # Draw thin track ring
-        painter.setPen(QPen(QColor(glow_color.red(), glow_color.green(), glow_color.blue(), 80), 1.0, Qt.PenStyle.DashLine))
+        # Draw concentric track circle
+        painter.setPen(QPen(QColor(primary_color.red(), primary_color.green(), primary_color.blue(), 90), 1.5))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawEllipse(QRectF(-mid_radius, -mid_radius, mid_radius * 2, mid_radius * 2))
         painter.restore()
 
-        # 3. Inner Core Reactor with Pulse & Radial Glow
-        pulse_scale = 1.0 + 0.08 * math.sin(self.pulse_phase)
-        core_radius = 14.0 * pulse_scale
+        # ---------------- 4. Inner Orbiting Quantum Particle Streams ----------------
+        painter.save()
+        painter.translate(center_x, center_y)
+        painter.rotate(self.angle_particles)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QBrush(QColor(255, 255, 255, 240)))
         
-        # Radial gradient for deep energy bloom
-        grad = QRadialGradient(center_x, center_y, core_radius * 1.6)
-        grad.setColorAt(0.0, QColor(255, 255, 255, 230))
-        grad.setColorAt(0.4, QColor(glow_color.red(), glow_color.green(), glow_color.blue(), 200))
-        grad.setColorAt(0.8, QColor(glow_color.red(), glow_color.green(), glow_color.blue(), 60))
+        num_particles = 4 if self.state == "processing" else 2
+        for p_idx in range(num_particles):
+            p_rad = (p_idx * (360.0 / num_particles)) * (math.pi / 180.0)
+            px = 62.0 * math.cos(p_rad)
+            py = 62.0 * math.sin(p_rad)
+            painter.drawEllipse(QRectF(px - 3.5, py - 3.5, 7.0, 7.0))
+        painter.restore()
+
+        # ---------------- 5. Inner Core Reactor with Pulsing Radial Glow ----------------
+        pulse_scale = 1.0 + 0.08 * math.sin(self.pulse_phase)
+        core_radius = 48.0 * pulse_scale
+        
+        # Multi-stage radial energy bloom
+        grad = QRadialGradient(center_x, center_y, core_radius * 2.0)
+        grad.setColorAt(0.0, QColor(255, 255, 255, 255))
+        grad.setColorAt(0.3, QColor(primary_color.red(), primary_color.green(), primary_color.blue(), 220))
+        grad.setColorAt(0.7, QColor(glow_color.red(), glow_color.green(), glow_color.blue(), 80))
         grad.setColorAt(1.0, QColor(glow_color.red(), glow_color.green(), glow_color.blue(), 0))
         
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QBrush(grad))
-        painter.drawEllipse(QRectF(center_x - core_radius * 1.5, center_y - core_radius * 1.5, core_radius * 3.0, core_radius * 3.0))
+        painter.drawEllipse(QRectF(center_x - core_radius * 1.8, center_y - core_radius * 1.8, core_radius * 3.6, core_radius * 3.6))
         
-        # Inner core solid center
-        painter.setPen(QPen(QColor(255, 255, 255, 240), 1.2))
-        painter.setBrush(QBrush(glow_color))
-        painter.drawEllipse(QRectF(center_x - core_radius * 0.6, center_y - core_radius * 0.6, core_radius * 1.2, core_radius * 1.2))
-
-        # 4. Orbiting Quantum Particle Dots (State == processing)
-        if self.state == "processing":
-            painter.save()
-            painter.translate(center_x, center_y)
-            painter.rotate(self.angle_particles)
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(QBrush(QColor(255, 255, 255, 220)))
-            for p_idx in range(3):
-                p_rad = (p_idx * 120.0) * (math.pi / 180.0)
-                px = (base_radius + 4.0) * math.cos(p_rad)
-                py = (base_radius + 4.0) * math.sin(p_rad)
-                painter.drawEllipse(QRectF(px - 2, py - 2, 4, 4))
-            painter.restore()
+        # Central Core High-Intensity Disc
+        painter.setPen(QPen(QColor(255, 255, 255, 250), 2.0))
+        painter.setBrush(QBrush(primary_color))
+        painter.drawEllipse(QRectF(center_x - core_radius * 0.55, center_y - core_radius * 0.55, core_radius * 1.1, core_radius * 1.1))
 
 
 class JarvisHUDOverlay(QWidget):
     """
-    Main Tactical HUD Floating Overlay Window.
+    Full-Screen Holographic J.A.R.V.I.S. HUD Window.
+    Pure graphic overlay with zero conventional text boxes.
     """
     command_submitted = pyqtSignal(object) # CapturedCommand
-    shortcut_triggered = pyqtSignal(str)   # "cmd", "vscode", "second_brain"
+    dismiss_requested = pyqtSignal()
 
     def __init__(self, on_submit: Optional[Callable[[CapturedCommand], None]] = None):
         super().__init__()
         self.on_submit = on_submit
         self.is_visible_state = False
         
-        # Window attributes
+        # Full-Screen Frameless Transparent Window
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint | 
             Qt.WindowType.WindowStaysOnTopHint | 
             Qt.WindowType.Tool
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.resize(780, 160)
-        self._center_window()
         
-        # Stream Typewriter Effect State
+        # Typewriter Subtitle Stream State
         self.stream_full_text = ""
         self.stream_current_idx = 0
         self.typewriter_timer = QTimer(self)
@@ -222,293 +237,141 @@ class JarvisHUDOverlay(QWidget):
         if self.on_submit:
             self.command_submitted.connect(self.on_submit)
 
-    def _center_window(self):
-        screen = QApplication.primaryScreen().geometry()
-        pos_x = int((screen.width() - self.width()) / 2)
-        pos_y = int(screen.height() * 0.16)
-        self.move(pos_x, pos_y)
-
     def _init_ui(self):
-        # Main Outer Container with Dark Glassmorphism Styling
-        self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(10, 10, 10, 10)
-        
-        self.bg_frame = QFrame(self)
-        self.bg_frame.setObjectName("HudBackground")
-        self.bg_frame.setStyleSheet("""
-            QFrame#HudBackground {
-                background-color: rgba(11, 14, 20, 235);
-                border: 1.5px solid #00F0FF;
-                border-radius: 14px;
+        screen = QApplication.primaryScreen().geometry()
+        self.setGeometry(0, 0, screen.width(), screen.height())
+
+        # Main Root Layout
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Full-Screen Dark Glass Backdrop (#030508 at 0.92 opacity)
+        self.backdrop_frame = QFrame(self)
+        self.backdrop_frame.setObjectName("HoloBackdrop")
+        self.backdrop_frame.setStyleSheet("""
+            QFrame#HoloBackdrop {
+                background-color: rgba(3, 5, 8, 235);
             }
         """)
-        
-        # Subtle Cyan Drop Glow Effect
-        glow = QGraphicsDropShadowEffect(self)
-        glow.setBlurRadius(28)
-        glow.setColor(QColor(0, 240, 255, 90))
-        glow.setOffset(0, 0)
-        self.bg_frame.setGraphicsEffect(glow)
-        
-        frame_layout = QVBoxLayout(self.bg_frame)
-        frame_layout.setContentsMargins(14, 8, 14, 10)
-        frame_layout.setSpacing(6)
 
-        # ---------------- TOP BAR: Telemetry | Arc Reactor | Quick Shortcuts ----------------
-        top_bar = QHBoxLayout()
-        top_bar.setContentsMargins(0, 0, 0, 0)
+        backdrop_layout = QVBoxLayout(self.backdrop_frame)
+        backdrop_layout.setContentsMargins(40, 40, 40, 40)
 
-        # Left Flank: System Telemetry
-        self.telemetry_box = QVBoxLayout()
-        self.telemetry_box.setSpacing(2)
+        # ---------------- TOP HEADER: System Telemetry Branding ----------------
+        top_header = QHBoxLayout()
+        self.header_title = QLabel("J.A.R.V.I.S. // STARK INDUSTRIES HOLOGRAPHIC INTERFACE")
+        self.header_title.setStyleSheet("color: rgba(0, 240, 255, 180); font-family: 'Segoe UI', monospace; font-size: 13px; font-weight: bold; letter-spacing: 2px;")
         
-        self.title_label = QLabel("⚡ JARVIS CORE // HUD v2.0")
-        self.title_label.setStyleSheet("color: #00F0FF; font-family: 'Segoe UI', sans-serif; font-size: 11px; font-weight: bold; letter-spacing: 1px;")
+        self.esc_hint = QLabel("PRESS [ESC] TO DISMISS")
+        self.esc_hint.setStyleSheet("color: rgba(148, 163, 184, 120); font-family: 'Segoe UI', monospace; font-size: 11px; letter-spacing: 1.5px;")
         
-        self.stat_cpu_ram = QLabel("CPU: 0%  |  RAM: 0.0GB (0%)")
-        self.stat_cpu_ram.setStyleSheet("color: #94A3B8; font-family: 'Segoe UI', monospace; font-size: 10px;")
-        
-        self.stat_net = QLabel("NET: ▲ 0.0 KB/s  ▼ 0.0 KB/s")
-        self.stat_net.setStyleSheet("color: #64748B; font-family: 'Segoe UI', monospace; font-size: 9.5px;")
-        
-        self.telemetry_box.addWidget(self.title_label)
-        self.telemetry_box.addWidget(self.stat_cpu_ram)
-        self.telemetry_box.addWidget(self.stat_net)
-        top_bar.addLayout(self.telemetry_box, stretch=3)
+        top_header.addWidget(self.header_title)
+        top_header.addStretch()
+        top_header.addWidget(self.esc_hint)
+        backdrop_layout.addLayout(top_header)
 
-        # Center: Central Vector Arc Reactor
-        self.arc_reactor = ArcReactorWidget(self)
-        top_bar.addWidget(self.arc_reactor, alignment=Qt.AlignmentFlag.AlignCenter)
+        backdrop_layout.addStretch(1)
 
-        # Right Flank: Quick Launcher Tools
-        right_box = QVBoxLayout()
-        right_box.setSpacing(4)
-        
-        quick_title = QLabel("TACTICAL SHORTCUTS")
-        quick_title.setAlignment(Qt.AlignmentFlag.AlignRight)
-        quick_title.setStyleSheet("color: #64748B; font-family: 'Segoe UI'; font-size: 9px; font-weight: bold; letter-spacing: 0.5px;")
-        right_box.addWidget(quick_title)
-        
-        btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(5)
-        
-        btn_style = """
-            QPushButton {
-                background-color: #161B26;
-                color: #38BDF8;
-                border: 1px solid #1E293B;
-                border-radius: 6px;
-                padding: 4px 8px;
-                font-family: 'Segoe UI';
-                font-size: 10px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #1E293B;
-                border-color: #00F0FF;
-                color: #FFFFFF;
-            }
-            QPushButton:pressed {
-                background-color: #0284C7;
-            }
-        """
-        self.btn_cmd = QPushButton("CMD")
-        self.btn_cmd.setStyleSheet(btn_style)
-        self.btn_cmd.clicked.connect(lambda: self.shortcut_triggered.emit("cmd"))
-        
-        self.btn_code = QPushButton("VS CODE")
-        self.btn_code.setStyleSheet(btn_style)
-        self.btn_code.clicked.connect(lambda: self.shortcut_triggered.emit("vscode"))
-        
-        self.btn_sb = QPushButton("2ND BRAIN")
-        self.btn_sb.setStyleSheet(btn_style)
-        self.btn_sb.clicked.connect(lambda: self.shortcut_triggered.emit("second_brain"))
-        
-        btn_layout.addWidget(self.btn_cmd)
-        btn_layout.addWidget(self.btn_code)
-        btn_layout.addWidget(self.btn_sb)
-        right_box.addLayout(btn_layout)
-        
-        top_bar.addLayout(right_box, stretch=3)
-        frame_layout.addLayout(top_bar)
+        # ---------------- CENTER: Giant Arc Reactor Visualizer ----------------
+        self.arc_reactor = GiantArcReactorWidget(self)
+        backdrop_layout.addWidget(self.arc_reactor, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # ---------------- MIDDLE: Command Input Field ----------------
-        input_container = QHBoxLayout()
-        input_container.setSpacing(8)
-        
-        self.input_field = QLineEdit()
-        self.input_field.setPlaceholderText("Speak or type command (e.g. 'Search note on SAMAY', 'Open VS Code')... [Enter: Send | Esc: Hide]")
-        self.input_field.setStyleSheet("""
-            QLineEdit {
-                background-color: rgba(22, 27, 38, 220);
-                color: #F8FAFC;
-                border: 1px solid #334155;
-                border-radius: 8px;
-                padding: 7px 12px;
-                font-family: 'Segoe UI', sans-serif;
-                font-size: 12.5px;
-            }
-            QLineEdit:focus {
-                border: 1.5px solid #00F0FF;
-                background-color: rgba(26, 32, 46, 240);
-            }
-        """)
-        self.input_field.returnPressed.connect(self._handle_submit)
-        
-        self.send_btn = QPushButton("EXECUTE")
-        self.send_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #0284C7;
-                color: #FFFFFF;
-                border: none;
-                border-radius: 8px;
-                padding: 7px 14px;
-                font-family: 'Segoe UI';
-                font-size: 11px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #0369A1;
-                border: 1px solid #38BDF8;
-            }
-        """)
-        self.send_btn.clicked.connect(self._handle_submit)
-        
-        input_container.addWidget(self.input_field, stretch=1)
-        input_container.addWidget(self.send_btn)
-        frame_layout.addLayout(input_container)
+        backdrop_layout.addStretch(1)
 
-        # ---------------- BOTTOM: Console Output / Voice Stream ----------------
-        console_layout = QHBoxLayout()
-        console_layout.setContentsMargins(2, 0, 2, 0)
+        # ---------------- BOTTOM: Sci-Fi Subtitle Stream ----------------
+        bottom_container = QVBoxLayout()
+        bottom_container.setSpacing(10)
         
-        self.status_pill = QLabel("[ ⚡ JARVIS READY ]")
-        self.status_pill.setStyleSheet("color: #00F0FF; font-family: 'Segoe UI'; font-size: 10px; font-weight: bold;")
+        self.status_badge = QLabel("[ J.A.R.V.I.S. IS LISTENING... ]")
+        self.status_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.status_badge.setStyleSheet("color: #00F0FF; font-family: 'Segoe UI', sans-serif; font-size: 14px; font-weight: bold; letter-spacing: 2px;")
         
-        self.console_stream = QLabel("Awaiting voice trigger (Win + J) or typed query...")
-        self.console_stream.setStyleSheet("color: #94A3B8; font-family: 'Segoe UI', monospace; font-size: 10.5px;")
+        self.subtitle_label = QLabel("Speak your command, sir...")
+        self.subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.subtitle_label.setWordWrap(True)
+        self.subtitle_label.setStyleSheet("color: #F8FAFC; font-family: 'Segoe UI', sans-serif; font-size: 20px; font-weight: 500; letter-spacing: 0.5px;")
         
-        console_layout.addWidget(self.status_pill)
-        console_layout.addWidget(self.console_stream, stretch=1)
-        frame_layout.addLayout(console_layout)
+        bottom_container.addWidget(self.status_badge)
+        bottom_container.addWidget(self.subtitle_label)
+        backdrop_layout.addLayout(bottom_container)
 
-        self.main_layout.addWidget(self.bg_frame)
+        root_layout.addWidget(self.backdrop_frame)
 
     def _bind_shortcuts(self):
         esc_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Escape), self)
         esc_shortcut.activated.connect(self.hide_overlay)
 
-    def update_telemetry(self, t: SystemTelemetryPayload):
-        """Updates CPU, RAM, and Network readout."""
-        self.stat_cpu_ram.setText(f"CPU: {t.cpu_percent}%  |  RAM: {t.ram_used_gb}GB / {t.ram_total_gb}GB ({t.ram_percent}%)")
-        self.stat_net.setText(f"NET: ▲ {t.net_sent_kbps} KB/s  ▼ {t.net_recv_kbps} KB/s")
-
     def set_hud_state(self, state: str, message: str = ""):
         """
-        Updates Arc Reactor state and status pill:
-        - 'listening': [ 🎙️ LISTENING... ] (Electric Blue)
-        - 'processing': [ ⚡ DECODING INTENT ] (Amber)
-        - 'success': [ 🚀 EXECUTED ] (Emerald)
-        - 'idle': [ ⚡ JARVIS READY ] (Cyan)
+        Updates Arc Reactor state, colors, and status subtitle badge:
+        - 'listening': [ J.A.R.V.I.S. IS LISTENING... ] (Stark Cyan)
+        - 'processing': [ J.A.R.V.I.S. IS COMPUTING... ] (Amber Gold)
+        - 'speaking': [ J.A.R.V.I.S. RESPONDING ] (Emerald Green)
+        - 'success': [ ACTION COMPLETED ] (Emerald Green)
+        - 'idle': [ J.A.R.V.I.S. STANDBY ] (Cyan)
         """
         self.arc_reactor.set_state(state)
         
         if state == "listening":
-            self.status_pill.setText("[ 🎙️ LISTENING ]")
-            self.status_pill.setStyleSheet("color: #38BDF8; font-family: 'Segoe UI'; font-size: 10px; font-weight: bold;")
-            self.bg_frame.setStyleSheet("QFrame#HudBackground { background-color: rgba(11, 14, 20, 235); border: 1.5px solid #38BDF8; border-radius: 14px; }")
+            self.status_badge.setText("[ J.A.R.V.I.S. IS LISTENING... ]")
+            self.status_badge.setStyleSheet("color: #00F0FF; font-family: 'Segoe UI'; font-size: 14px; font-weight: bold; letter-spacing: 2px;")
         elif state == "processing":
-            self.status_pill.setText("[ ⚡ DECODING INTENT ]")
-            self.status_pill.setStyleSheet("color: #F59E0B; font-family: 'Segoe UI'; font-size: 10px; font-weight: bold;")
-            self.bg_frame.setStyleSheet("QFrame#HudBackground { background-color: rgba(11, 14, 20, 235); border: 1.5px solid #F59E0B; border-radius: 14px; }")
-        elif state == "success":
-            self.status_pill.setText("[ 🚀 EXECUTED ]")
-            self.status_pill.setStyleSheet("color: #10B981; font-family: 'Segoe UI'; font-size: 10px; font-weight: bold;")
-            self.bg_frame.setStyleSheet("QFrame#HudBackground { background-color: rgba(11, 14, 20, 235); border: 1.5px solid #10B981; border-radius: 14px; }")
+            self.status_badge.setText("[ J.A.R.V.I.S. IS COMPUTING... ]")
+            self.status_badge.setStyleSheet("color: #F59E0B; font-family: 'Segoe UI'; font-size: 14px; font-weight: bold; letter-spacing: 2px;")
+        elif state in ["speaking", "success"]:
+            self.status_badge.setText("[ J.A.R.V.I.S. RESPONDING ]")
+            self.status_badge.setStyleSheet("color: #10B981; font-family: 'Segoe UI'; font-size: 14px; font-weight: bold; letter-spacing: 2px;")
         else:
-            self.status_pill.setText("[ ⚡ JARVIS READY ]")
-            self.status_pill.setStyleSheet("color: #00F0FF; font-family: 'Segoe UI'; font-size: 10px; font-weight: bold;")
-            self.bg_frame.setStyleSheet("QFrame#HudBackground { background-color: rgba(11, 14, 20, 235); border: 1.5px solid #00F0FF; border-radius: 14px; }")
+            self.status_badge.setText("[ J.A.R.V.I.S. STANDBY ]")
+            self.status_badge.setStyleSheet("color: #00F0FF; font-family: 'Segoe UI'; font-size: 14px; font-weight: bold; letter-spacing: 2px;")
 
         if message:
             self.stream_response(message)
 
     def stream_response(self, text: str):
-        """Typewriter text stream output."""
+        """Typewriter character-by-character subtitle stream."""
         self.stream_full_text = text
         self.stream_current_idx = 0
-        self.console_stream.setText("")
-        self.typewriter_timer.start(18) # 18ms per character
+        self.subtitle_label.setText("")
+        self.typewriter_timer.start(20) # 20ms per character
 
     def _stream_step(self):
         if self.stream_current_idx < len(self.stream_full_text):
             self.stream_current_idx += 1
-            self.console_stream.setText(self.stream_full_text[:self.stream_current_idx])
+            self.subtitle_label.setText(self.stream_full_text[:self.stream_current_idx])
         else:
             self.typewriter_timer.stop()
 
     def set_amplitude(self, amp: float):
         self.arc_reactor.set_amplitude(amp)
 
-    def set_input_text(self, text: str):
-        self.input_field.setText(text)
-        self.input_field.setCursorPosition(len(text))
-
     def show_overlay(self):
-        """Shows HUD overlay, animates wake, and grabs foreground focus."""
+        """Shows full-screen holographic HUD, plays wake chime, and grabs foreground focus."""
         self.is_visible_state = True
-        self.show()
+        play_wake_sound()
+        
+        self.showFullScreen()
         self.raise_()
         self.activateWindow()
         
-        # Win32 foreground grab
+        # Grab Win32 OS foreground focus
         hwnd = int(self.winId())
         force_foreground_window(hwnd)
         
-        self.input_field.setFocus()
-        self.set_hud_state("listening")
+        self.set_hud_state("listening", "At your service, sir. I am listening...")
 
     def hide_overlay(self):
-        """Hides HUD overlay."""
+        """Plays dismiss chime and closes HUD overlay."""
+        if self.is_visible_state:
+            play_dismiss_sound()
         self.is_visible_state = False
         self.arc_reactor.set_amplitude(0.0)
         self.set_hud_state("idle")
-        self.input_field.clear()
         self.hide()
+        self.dismiss_requested.emit()
 
     def toggle(self):
         if self.is_visible_state:
             self.hide_overlay()
         else:
             self.show_overlay()
-
-    def _handle_submit(self):
-        text = self.input_field.text().strip()
-        if not text:
-            self.hide_overlay()
-            return
-            
-        clipboard_text = None
-        try:
-            clipboard_text = pyperclip.paste().strip() or None
-        except Exception:
-            pass
-
-        # Determine target scope
-        scope = "general_query"
-        text_lower = text.lower()
-        if any(w in text_lower for w in ["note", "second brain", "brain", "challenge", "samay", "todo"]):
-            scope = "second_brain"
-        elif any(w in text_lower for w in ["open", "launch", "run", "cmd", "vscode", "code"]):
-            scope = "app_launcher"
-        elif any(w in text_lower for w in ["stat", "cpu", "ram", "memory", "net"]):
-            scope = "system_telemetry"
-
-        cmd = CapturedCommand(
-            trigger_source="manual" if not getattr(self, "_from_voice", False) else "voice_vad",
-            raw_text=text,
-            clipboard_context=clipboard_text,
-            target_scope=scope
-        )
-        self._from_voice = False
-        self.command_submitted.emit(cmd)

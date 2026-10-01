@@ -1,90 +1,79 @@
-# ⚡ Jarvis Desktop Assistant (Cyberpunk Tactical HUD v2.0)
+# ⚡ J.A.R.V.I.S. (Stark Tech Full-Screen Holographic HUD)
 
-A high-performance, low-latency desktop assistant overlay for Windows built with **PyQt6**, **sounddevice**, **faster-whisper (INT8 quantized)**, and local **Second Brain** knowledge integration.
-
----
-
-## ✨ Key Features
-
-- **Global Activation (`Win + J`)**: Seamlessly invoke a sleek floating tactical HUD from anywhere in Windows with instant OS foreground focus.
-- **Micro-Animated Arc Reactor Core**:
-  - Custom vector-rendered 3-track rotating HUD core (`QPainter`).
-  - Real-time audio-reactive radial waveform equalizer bars scaling dynamically with microphone RMS volume.
-  - State acceleration (12 RPM idle ➔ 60 RPM on processing/thinking) with orbiting particle effects.
-- **Direct Low-Latency Speech Engine**:
-  - Streams microphone audio directly into memory via `sounddevice` (16kHz mono).
-  - Sub-200ms local transcription using `faster-whisper` quantized models (`tiny.en` INT8).
-  - Zero reliance on external Windows Dictation overlays (`Win + H`).
-- **Local Second Brain Integration**:
-  - Instant multi-token search across all Markdown notes in `d:/_Second Brain`.
-  - Preview note titles, snippets, and open notes directly in VS Code / default editor.
-- **Real-Time System Telemetry**:
-  - Live CPU %, RAM GB usage, and Network upload/download bandwidth counters powered by `psutil`.
-- **Quick Tactical Shortcuts**:
-  - One-click launcher buttons for Command Prompt (`CMD`), Visual Studio Code (`VS CODE`), and Second Brain (`2ND BRAIN`).
-- **Terminal Typewriter Stream**:
-  - Smooth character-by-character response streaming with glowing cyber status badges (`[ 🎙️ LISTENING ]`, `[ ⚡ DECODING INTENT ]`, `[ 🚀 EXECUTED ]`).
-- **Instant Dismissal (`Esc`)**:
-  - Yields focus and hides overlay instantly.
+A zero-friction, hands-free **J.A.R.V.I.S.** assistant overlay for Windows built with **PyQt6**, **sounddevice**, **faster-whisper (INT8 quantized)**, **Windows SAPI TTS**, and local **Second Brain** knowledge integration.
 
 ---
 
-## 🏗️ Architecture & File Structure (B.L.A.S.T.)
+## ✨ Features
+
+- **Global Hotkey (`Win + J`)**: Summon J.A.R.V.I.S. from any application, game, or window across Windows.
+- **Full-Screen Holographic HUD**:
+  - Dark glassmorphic canvas (`#030508`, 0.92 opacity) covering the entire display.
+  - **Zero Text-Box Invariant**: Pure graphical HUD without clunky text boxes. 100% voice-driven.
+  - **Giant Animated Arc Reactor Core**: Multi-ring concentric rotating tracks, 16 radial audio-reactive waveform bars scaling in real-time with your microphone, and orbiting quantum energy particles.
+- **Audio Chimes & Cues**:
+  - Sci-fi startup chime (`wake.wav`) on `Win + J` activation.
+  - Powering-down chime (`dismiss.wav`) on dismissal.
+- **Dynamic State Transitions**:
+  - **Listening State:** Stark Cyan (`#00F0FF`) & Electric Blue (`#3B82F6`) with live audio waveform bars.
+  - **Processing / Computing:** Amber Gold (`#F59E0B`), Arc Reactor accelerates from 15 RPM to 90 RPM with orbiting particles.
+  - **Speaking / Action:** Emerald Green (`#10B981`), local voice response plays while minimalist subtitles stream across the screen.
+- **Local Voice Output (TTS) & Iron Man Persona**:
+  - Sophisticated, polite, and witty J.A.R.V.I.S. persona ("At your service, sir", "Right away, sir").
+  - 100% local Windows SAPI speech synthesis with zero cloud latency.
+- **Second Brain Vault Interrogation**:
+  - Search notes, read summaries, and launch note files directly in VS Code by voice.
+- **OS Automation Drivers**:
+  - Voice-controlled volume adjustments (Up, Down, Mute) and application launching (VS Code, Terminal, Browser, Explorer).
+
+---
+
+## 🏗️ Architecture (B.L.A.S.T.)
 
 ```
 Jarvis/
-├── main.py                     # Layer 2: Main Orchestrator & Qt Event Loop
-├── architecture/               # Layer 1: Technical SOPs (The "How-To")
-│   ├── sop_pyqt6_hud.md        # Window geometry, Arc Reactor, styling, focus
-│   ├── sop_voice_engine.md     # sounddevice stream, RMS calculation, faster-whisper
-│   ├── sop_second_brain.md     # Markdown indexing, ranking search engine
-│   ├── sop_app_launcher.md     # Application & shortcut execution
-│   └── sop_hotkey_daemon.md    # Background keyboard listener & signal dispatch
-├── tools/                      # Layer 3: Deterministic Python Tools
-│   ├── models.py               # Pydantic schemas (CapturedCommand, CommandExecutionResult)
-│   ├── hud_overlay.py          # PyQt6 Tactical HUD & Arc Reactor vector widget
-│   ├── voice_engine.py         # sounddevice stream + RMS audio waveform + faster-whisper worker
-│   ├── second_brain.py         # Fast search & parser for Second Brain notes
-│   ├── system_telemetry.py     # Live CPU, RAM, and Network polling
-│   ├── app_launcher.py         # App and note launching engine
+├── main.py                     # Layer 2: Main Cognitive Orchestrator
+├── architecture/               # Layer 1: Technical SOPs
+│   ├── sop_pyqt6_hud.md        # Full-Screen HUD & Arc Reactor specifications
+│   ├── sop_voice_engine.md     # sounddevice stream, RMS waveform, faster-whisper
+│   ├── sop_second_brain.md     # Markdown indexing & vault search engine
+│   ├── sop_app_launcher.md     # System & app execution SOP
+│   └── sop_hotkey_daemon.md    # OS-wide Win32 RegisterHotKey listener
+├── tools/                      # Layer 3: Deterministic Tools
+│   ├── hud_overlay.py          # Full-Screen Holographic HUD & Giant Arc Reactor
+│   ├── voice_engine.py         # sounddevice buffer + RMS waveform + faster-whisper
+│   ├── tts_engine.py           # Background Windows SAPI voice synthesizer
+│   ├── audio_sfx.py            # Procedural sci-fi chimes generator & player
+│   ├── system_controls.py      # Volume control, mute, and app launching
+│   ├── second_brain.py         # Local Markdown note search and reader
 │   ├── hotkey_daemon.py        # Global Win + J listener
-│   ├── win_keys.py             # Win32 foreground window management
-│   ├── verify_link.py          # Link verification spike script
-│   └── test_app.py             # Automated unit test suite (5/5 passed)
+│   ├── models.py               # Pydantic data schemas
+│   ├── verify_link.py          # Connectivity tester
+│   └── test_app.py             # Unit test suite (5/5 passed)
+├── assets/sounds/              # Sci-fi sound chimes (wake.wav, dismiss.wav)
 ├── gemini.md                   # Project Constitution & Data Schemas
-├── task_plan.md                # B.L.A.S.T. Master Phase Tracker
-├── findings.md                 # Technical findings & architectural decisions
-├── progress.md                 # Execution history & milestones
-└── task-spec.md                # Core functional specification
+├── task_plan.md                # B.L.A.S.T. Phase Tracker
+├── findings.md                 # Technical notes & discoveries
+└── progress.md                 # Execution history
 ```
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Requirements & Dependencies
-
-Ensure dependencies are installed:
-```powershell
-pip install PyQt6 sounddevice psutil faster-whisper numpy keyboard pyperclip pywin32
-```
-
-### 2. Verify Connectivity & Run Tests
-
-```powershell
-python tools/verify_link.py
-python tools/test_app.py
-```
-
-### 3. Launch Jarvis
+### 1. Launch J.A.R.V.I.S.
 
 ```powershell
 python main.py
 ```
 
-### 4. Interactive Controls
+### 2. Voice Commands
 
-- `Win + J`: Summon / Dismiss Jarvis HUD
-- **Speak naturally**: Audio level activates the glowing radial waveform bars and automatically transcribes intent on silence
-- **Type command**: e.g., `"Search note for SAMAY"`, `"Open VS Code"`, `"System stats"`, then hit `Enter`
-- `Esc`: Instantly dismiss overlay
+- Press `Win + J` anywhere on Windows
+- Say:
+  - *"Search note for SAMAY"* ➔ Interrogates vault & speaks summary
+  - *"Open note for SAMAY"* ➔ Launches note in VS Code
+  - *"Increase volume"* / *"Mute"* ➔ Adjusts Windows audio
+  - *"Launch terminal"* / *"Open VS Code"* ➔ Spawns applications
+  - *"System diagnostics"* / *"Who are you?"* ➔ Conversational persona response
+- Press `Esc` anytime to dismiss
