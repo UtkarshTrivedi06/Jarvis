@@ -1,6 +1,6 @@
 # ⚡ J.A.R.V.I.S. (Stark Tech Full-Screen Holographic HUD)
 
-A zero-friction, hands-free **J.A.R.V.I.S.** assistant overlay for Windows built with **PyQt6**, **sounddevice**, **faster-whisper (INT8 quantized)**, **Windows SAPI TTS**, and local **Second Brain** knowledge integration.
+A zero-friction, hands-free **J.A.R.V.I.S.** autonomous voice agent for Windows built with **PyQt6**, **sounddevice**, **faster-whisper (INT8 quantized)**, **Nous Hermes 3 Agent Loop**, **Honcho Adaptive Memory**, **Windows SAPI TTS**, and **Second Brain** knowledge vault integration.
 
 ---
 
@@ -11,12 +11,18 @@ A zero-friction, hands-free **J.A.R.V.I.S.** assistant overlay for Windows built
   - Dark glassmorphic canvas (`#030508`, 0.92 opacity) covering the entire display.
   - **Zero Text-Box Invariant**: Pure graphical HUD without clunky text boxes. 100% voice-driven.
   - **Giant Animated Arc Reactor Core**: Multi-ring concentric rotating tracks, 16 radial audio-reactive waveform bars scaling in real-time with your microphone, and orbiting quantum energy particles.
+- **Nous Hermes 3 Agent Router**:
+  - Local Ollama endpoint (`hermes3`) with function calling across modular agent tools.
+  - Sub-second deterministic fallback if offline.
+- **Honcho Long-Term Adaptive Memory**:
+  - Automatically enriches system context with user preferences and historical interactions.
+  - Seamless offline local caching fallback.
 - **Audio Chimes & Cues**:
   - Sci-fi startup chime (`wake.wav`) on `Win + J` activation.
   - Powering-down chime (`dismiss.wav`) on dismissal.
 - **Dynamic State Transitions**:
   - **Listening State:** Stark Cyan (`#00F0FF`) & Electric Blue (`#3B82F6`) with live audio waveform bars.
-  - **Processing / Computing:** Amber Gold (`#F59E0B`), Arc Reactor accelerates from 15 RPM to 90 RPM with orbiting particles.
+  - **Hermes Reasoning / Tool Execution:** Amber Gold (`#F59E0B`), Arc Reactor accelerates from 15 RPM to 90 RPM with orbiting particles.
   - **Speaking / Action:** Emerald Green (`#10B981`), local voice response plays while minimalist subtitles stream across the screen.
 - **Local Voice Output (TTS) & Iron Man Persona**:
   - Sophisticated, polite, and witty J.A.R.V.I.S. persona ("At your service, sir", "Right away, sir").
@@ -40,6 +46,11 @@ Jarvis/
 │   ├── sop_app_launcher.md     # System & app execution SOP
 │   └── sop_hotkey_daemon.md    # OS-wide Win32 RegisterHotKey listener
 ├── tools/                      # Layer 3: Deterministic Tools
+│   ├── agent_tools/            # Modular Hermes tool registry
+│   │   ├── vault_tools.py      # Search, read, and open Second Brain notes
+│   │   └── system_tools.py     # Volume control, mute, apps, telemetry
+│   ├── memory_honcho.py        # Honcho adaptive memory client
+│   ├── hermes_agent.py         # Nous Hermes 3 agent router & fallback
 │   ├── hud_overlay.py          # Full-Screen Holographic HUD & Giant Arc Reactor
 │   ├── voice_engine.py         # sounddevice buffer + RMS waveform + faster-whisper
 │   ├── tts_engine.py           # Background Windows SAPI voice synthesizer

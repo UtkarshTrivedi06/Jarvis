@@ -1,10 +1,10 @@
 """
-J.A.R.V.I.S. B.L.A.S.T. Data Models
+J.A.R.V.I.S. B.L.A.S.T. Data Models (Hermes + Honcho Integration)
 Strictly conforming to task-spec.md and gemini.md schemas.
 """
 
 from datetime import datetime, timezone
-from typing import Optional, Literal
+from typing import Optional, List, Literal
 from pydantic import BaseModel, Field
 
 class CapturedCommand(BaseModel):
@@ -12,25 +12,32 @@ class CapturedCommand(BaseModel):
         default_factory=lambda: datetime.now(timezone.utc).isoformat(),
         description="ISO-8601 timestamp when command was submitted"
     )
-    trigger_source: str = Field(
-        default="win+j_voice",
-        description="Source that triggered the input window"
-    )
     transcribed_text: str = Field(
         ...,
         description="Transcribed spoken user command"
     )
-    vad_confidence: float = Field(
-        default=0.99,
-        description="VAD confidence score"
+    honcho_user_id: str = Field(
+        default="stark_01",
+        description="Honcho user representation ID"
     )
-    target_scope: Literal["second_brain", "system_control", "general_query"] = Field(
-        default="general_query",
-        description="Target routing scope for the command"
+    honcho_context: Optional[str] = Field(
+        default=None,
+        description="Dynamic user memory context retrieved from Honcho"
+    )
+    agent_model: str = Field(
+        default="hermes3",
+        description="Agent reasoning model"
     )
 
 class CommandExecutionResult(BaseModel):
-    action_type: Literal["tts_response", "execute_system_command", "search_vault"] = "tts_response"
+    action_type: Literal["agent_execution", "tts_response", "execute_system_command", "search_vault"] = "agent_execution"
     spoken_response: str
-    executed_command: Optional[str] = None
+    executed_tools: List[str] = Field(
+        default_factory=list,
+        description="List of tools executed during agent resolution"
+    )
+    memory_updated: bool = Field(
+        default=True,
+        description="Whether memory was updated in Honcho"
+    )
     status: Literal["success", "error"] = "success"

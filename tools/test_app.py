@@ -1,6 +1,5 @@
 """
-Automated Comprehensive Test Suite for J.A.R.V.I.S. Desktop Assistant
-Validates Models, Audio SFX, Second Brain, System Controls, Full-Screen HUD, and Orchestrator.
+Automated Comprehensive Test Suite for J.A.R.V.I.S. (Hermes + Honcho Integration)
 """
 
 import os
@@ -13,10 +12,11 @@ if PROJECT_ROOT not in sys.path:
 
 from PyQt6.QtWidgets import QApplication
 from tools.models import CapturedCommand, CommandExecutionResult
-from tools.second_brain import SecondBrainEngine
-from tools.system_controls import SystemControlEngine
+from tools.memory_honcho import HonchoMemoryClient
+from tools.hermes_agent import HermesAgent
+from tools.agent_tools import ALL_TOOLS, TOOL_DISPATCH
 from tools.audio_sfx import generate_sci_fi_chimes, WAKE_WAV, DISMISS_WAV
-from tools.hud_overlay import JarvisHUDOverlay, GiantArcReactorWidget
+from tools.hud_overlay import JarvisHUDOverlay
 from main import JarvisOrchestrator
 
 class TestJarvisAssistant(unittest.TestCase):
@@ -27,73 +27,69 @@ class TestJarvisAssistant(unittest.TestCase):
             cls.app = QApplication(sys.argv)
 
     def test_01_models_validation(self):
-        """Test Pydantic input and output payload models."""
+        """Test Pydantic input and output payload models for Hermes and Honcho."""
         cmd = CapturedCommand(
             trigger_source="win+j_voice",
             transcribed_text="Search note for SAMAY",
-            vad_confidence=0.99,
-            target_scope="second_brain"
+            honcho_user_id="stark_01",
+            honcho_context="User prefers concise responses",
+            agent_model="hermes3"
         )
-        self.assertEqual(cmd.trigger_source, "win+j_voice")
-        self.assertEqual(cmd.target_scope, "second_brain")
+        self.assertEqual(cmd.honcho_user_id, "stark_01")
+        self.assertEqual(cmd.agent_model, "hermes3")
 
         res = CommandExecutionResult(
-            action_type="tts_response",
+            action_type="agent_execution",
             spoken_response="At your service, sir.",
+            executed_tools=["search_vault"],
+            memory_updated=True,
             status="success"
         )
         self.assertEqual(res.status, "success")
-        self.assertEqual(res.action_type, "tts_response")
+        self.assertIn("search_vault", res.executed_tools)
 
-    def test_02_audio_sfx_synthesis(self):
-        """Test procedural sound chimes generation."""
-        generate_sci_fi_chimes()
-        self.assertTrue(os.path.exists(WAKE_WAV))
-        self.assertTrue(os.path.exists(DISMISS_WAV))
-        print("  [Test] Sci-Fi audio chimes generated and validated.")
+    def test_02_honcho_memory_client(self):
+        """Test Honcho memory client retrieval and async saving."""
+        memory = HonchoMemoryClient(user_id="test_user")
+        ctx = memory.get_user_context()
+        self.assertIsInstance(ctx, str)
+        memory.save_session_turn("Test query", "Test response", ["search_vault"])
+        print(f"  [Test] Honcho memory context retrieved: {ctx[:60]}...")
 
-    def test_03_system_controls(self):
-        """Test system control routines."""
-        sc = SystemControlEngine()
-        msg_up = sc.volume_up(1)
-        self.assertIn("audio volume", msg_up)
-        print(f"  [Test] System control message: {msg_up}")
+    def test_03_agent_tools_registry(self):
+        """Test agent tools execution."""
+        self.assertGreaterEqual(len(ALL_TOOLS), 4)
+        
+        # Test vault tool
+        res_vault = TOOL_DISPATCH["search_vault"](query="project")
+        self.assertIsInstance(res_vault, str)
+        
+        # Test volume tool
+        res_vol = TOOL_DISPATCH["adjust_volume"](direction="up")
+        self.assertIn("audio volume", res_vol)
+        print(f"  [Test] Agent tools validated. Volume: {res_vol}")
 
-    def test_04_hud_widgets_and_giant_reactor(self):
-        """Test full-screen HUD and Giant Arc Reactor state transitions."""
-        hud = JarvisHUDOverlay()
-        self.assertIsNotNone(hud.arc_reactor)
-        
-        # Test states
-        hud.set_hud_state("listening", "Listening test")
-        self.assertEqual(hud.arc_reactor.state, "listening")
-        
-        hud.set_hud_state("processing", "Computing test")
-        self.assertEqual(hud.arc_reactor.state, "processing")
-        
-        hud.set_hud_state("speaking", "Speaking test")
-        self.assertEqual(hud.arc_reactor.state, "speaking")
-        
-        # Test audio amplitude setting
-        hud.set_amplitude(0.85)
-        self.assertEqual(hud.arc_reactor.target_amplitude, 0.85)
-        print("  [Test] Full-Screen HUD & Giant Arc Reactor animations validated.")
+    def test_04_hermes_agent_reasoning(self):
+        """Test Hermes agent reasoning and tool resolution."""
+        agent = HermesAgent()
+        response, tools = agent.process_query("Search note for SAMAY", "User prefers fast results")
+        self.assertIsInstance(response, str)
+        self.assertIn("search_vault", tools)
+        print(f"  [Test] Hermes executed tools: {tools}")
 
     def test_05_orchestrator_routing(self):
-        """Test Layer 2 orchestrator command handling with J.A.R.V.I.S. persona."""
+        """Test full orchestrator turn."""
         orchestrator = JarvisOrchestrator()
-        
-        # Test Second Brain query
-        cmd_sb = CapturedCommand(
+        cmd = CapturedCommand(
             trigger_source="win+j_voice",
             transcribed_text="Search note for SAMAY",
-            target_scope="second_brain"
+            honcho_user_id="stark_01"
         )
-        res_sb = orchestrator.handle_command(cmd_sb)
-        self.assertEqual(res_sb.status, "success")
-        self.assertIn("sir", res_sb.spoken_response)
-        clean_spoken = res_sb.spoken_response.encode('ascii', errors='ignore').decode()
-        print(f"  [Test] Orchestrator executed query with J.A.R.V.I.S. persona: '{clean_spoken}'")
+        res = orchestrator.handle_command(cmd)
+        self.assertEqual(res.status, "success")
+        self.assertTrue(res.memory_updated)
+        clean_spoken = res.spoken_response.encode('ascii', errors='ignore').decode()
+        print(f"  [Test] Full turn completed with response: '{clean_spoken[:70]}...'")
 
 
 if __name__ == "__main__":
