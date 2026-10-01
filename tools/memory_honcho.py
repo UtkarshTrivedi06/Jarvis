@@ -1,6 +1,6 @@
 """
 J.A.R.V.I.S. Adaptive Memory Client (Honcho Integration)
-Connects to Honcho SDK / API for long-term user representation and session memory,
+Connects to Honcho SDK (honcho-ai v2.5+) for long-term user representation and session memory,
 with automatic local persistent fallback.
 """
 
@@ -17,16 +17,19 @@ class HonchoMemoryClient:
     def __init__(self, user_id: str = "stark_01"):
         self.user_id = user_id
         self.api_key = os.environ.get("HONCHO_API_KEY", None)
-        self.app_id = os.environ.get("HONCHO_APP_ID", "jarvis-desktop")
+        self.workspace_id = os.environ.get("HONCHO_WORKSPACE_ID", "jarvis_workspace")
         self._honcho_sdk = None
         self._init_sdk()
 
     def _init_sdk(self):
         if self.api_key:
             try:
-                import honcho
-                self._honcho_sdk = honcho.Honcho(api_key=self.api_key)
-                print(f"[Honcho] Initialized cloud client for user '{self.user_id}'.")
+                from honcho import Honcho
+                self._honcho_sdk = Honcho(
+                    api_key=self.api_key,
+                    workspace_id=self.workspace_id
+                )
+                print(f"[Honcho] Initialized cloud client for workspace '{self.workspace_id}' (User: '{self.user_id}').")
             except Exception as e:
                 print(f"[Honcho] SDK notice: {e}. Utilizing persistent local memory engine.")
         else:
@@ -36,13 +39,13 @@ class HonchoMemoryClient:
         """Retrieves adaptive memory context for user query augmentation."""
         if self._honcho_sdk:
             try:
-                # Query Honcho memory context
-                user = self._honcho_sdk.users.get(self.user_id)
-                representation = user.representation()
-                if representation:
-                    return str(representation)
+                # Query Honcho conclusions/context
+                conclusions = self._honcho_sdk.conclusions.get(session_id=f"{self.user_id}_session")
+                if conclusions:
+                    return str(conclusions)
             except Exception as e:
-                print(f"[Honcho] Cloud context fetch fallback: {e}")
+                # Fallback to local
+                pass
 
         # Local Persistent Memory Fallback
         return self._get_local_context()
@@ -56,20 +59,26 @@ class HonchoMemoryClient:
         ).start()
 
     def _async_save(self, user_query: str, agent_response: str, executed_tools: List[str]):
-        # 1. Update cloud Honcho if available
+        # 1. Update cloud Honcho if SDK and API key are configured
         if self._honcho_sdk:
             try:
-                session = self._honcho_sdk.sessions.get_or_create(session_id=f"{self.user_id}_session")
-                session.messages.create(
-                    messages=[
-                        {"role": "user", "content": user_query},
-                        {"role": "assistant", "content": agent_response}
-                    ]
+                session_id = f"{self.user_id}_session"
+                self._honcho_sdk.sessions.get_or_create(session_id=session_id)
+                # Record user query and assistant response messages
+                self._honcho_sdk.messages.create(
+                    session_id=session_id,
+                    peer_id=self.user_id,
+                    content=user_query
+                )
+                self._honcho_sdk.messages.create(
+                    session_id=session_id,
+                    peer_id="jarvis_assistant",
+                    content=agent_response
                 )
             except Exception as e:
                 print(f"[Honcho] Cloud save notice: {e}")
 
-        # 2. Update local memory store
+        # 2. Update local persistent memory store
         try:
             data = self._load_local_data()
             if "history" not in data:
@@ -80,14 +89,16 @@ class HonchoMemoryClient:
                 "response": agent_response,
                 "tools": executed_tools
             })
-            # Keep latest 30 turns
+            # Retain last 30 turns
             data["history"] = data["history"][-30:]
             
-            # Simple preference extraction heuristics
-            if "prefer" in user_query.lower() or "always" in user_query.lower():
+            # Simple adaptive preference extraction
+            q_lower = user_query.lower()
+            if "prefer" in q_lower or "always" in q_lower or "i like" in q_lower:
                 if "preferences" not in data:
                     data["preferences"] = []
-                data["preferences"].append(user_query)
+                if user_query not in data["preferences"]:
+                    data["preferences"].append(user_query)
 
             with open(LOCAL_MEMORY_FILE, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
